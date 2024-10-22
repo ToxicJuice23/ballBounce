@@ -5,6 +5,7 @@
 #include <math.h>
 #include <stdarg.h>
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_thread.h>
 #include <signal.h>
 #include <time.h>
 #define PI 3.141592653589

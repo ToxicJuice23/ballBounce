@@ -4,6 +4,8 @@ ATTENTION POSSIBLE CONTRIBUTERS
 -------------------------------
 All of the functions should be using radians for consistency
 -------------------------------
+todo
+    - listen for keystrokes so for example x=500(enter) or x=24f(esc)x=500 will set initial speed on x to 500 and restart
 */
 
 void fatalf(const char* fmt, ...) {
@@ -19,8 +21,9 @@ float calculate_velocity_elastic_collision(const float v) {
     return -0.9f*v;
 }
 
-void set_base_circle(ball_t* ball, const int n_seg) {
+void set_base_circle(ball_t* ball) {
     // compute circle now and simply add x and y values to the points...
+    const int n_seg = ball->n_seg;
     ball->base_circle = malloc(sizeof(SDL_FPoint) * (n_seg + 2));
     if (ball->base_circle == NULL) {
         fatalf("No memory to allocate...X(\n");
@@ -38,11 +41,15 @@ void set_base_circle(ball_t* ball, const int n_seg) {
     ball->base_circle[n_seg] = ball->base_circle[0];
 }
 
-void drawCircle(SDL_Renderer* renderer, const ball_t* ball, const float x, const float y, const int n) {
+void drawCircle(SDL_Renderer* renderer, ball_t* ball, const float x, const float y, const int n) {
     // drawCircle(SDL_Renderer*, float, float, int)
     // drawCircle takes a renderer, coordinates, the radius and the smoothness of the circle (number of segments)
-    register SDL_FPoint* points = malloc(sizeof(SDL_FPoint)*(n+2));
+    SDL_FPoint* points = malloc(sizeof(SDL_FPoint)*(n+2));
+    if (ball->base_circle == NULL) {set_base_circle(ball);};
     memcpy(points, ball->base_circle, sizeof(SDL_FPoint) * (n+1));
+    if (points == NULL) {
+        fatalf("Memory is null.\n");
+    }
 
     for (int i = 0; i <= n; i++) {
         points[i].x += x;
@@ -59,32 +66,31 @@ float get_time(const float start) {
     return (float)clock() * clock_divisor - start;
 }
 
-pos_t get_pos(const ball_t* ball) {
+void set_pos(ball_t* ball) {
     const float dx = ball->v_x * (ball->dtx);
     const float dy = ball->v_y * ball->dty + 0.5f * G * ball->dty * ball->dty; // removed pow(dty, 2); for speed
-    return (pos_t){dx, dy};
+    ball->p.x = dx; ball->p.y = dy;
 }
 
 int handle_collision(ball_t* ball, const u_short size_x, const u_short size_y, u_short* counter) {
     // ball, window size as args
     // returns the angle of collision (in radians)
-    const pos_t pos = get_pos(ball);
-    const float x = pos.x + ball->x, y = pos.y + ball->y;
+    set_pos(ball);
+    const float x = ball->p.x + ball->x, y = ball->p.y + ball->y;
     u_int8_t _case = 0;
     float sizes[4] = {x-ball->mass, x+ball->mass, y-ball->mass, y+ball->mass};
     if ((sizes[1] > (float)size_x && (_case = 1)) || (sizes[0] < 0.f && (_case = 2)) || (sizes[3] > (float)size_y && (_case = 3)) || (sizes[2] < 0.f && (_case = 4))) {
-        const pos_t p = get_pos(ball);
         switch (_case) {
             case 3:
                 case 4:
                 ball->v_y = calculate_velocity_elastic_collision(ball->v_y + G*ball->dty);
-                ball->y += p.y;
+                ball->y += ball->p.y;
                 ball->dty = 0;
                 ball->t0y = get_time(0);
                 break;
             case 1:
                 case 2:
-                ball->x += p.x;
+                ball->x += ball->p.x;
                 ball->v_x = calculate_velocity_elastic_collision(ball->v_x);
                 ball->dtx = 0;
                 ball->t0x = get_time(0);
@@ -106,26 +112,90 @@ int handle_collision(ball_t* ball, const u_short size_x, const u_short size_y, u
     return 0;
 }
 
-int main(void)
-{
+void setup_ball(ball_t* ball, const float v0x, const float v0y) {
+    ball->n_seg = 100;
+    ball->x = (float)window_size_x / 2.f;
+    ball->y = (float)window_size_y / 2.f;
+    ball->v_y = v0y; // pixels/s
+    ball->v_x = v0x; // pixels/s
+    ball->mass = (float)window_size_x / 20.f; // kg
+    set_base_circle(ball);
+    ball->t0x = get_time(0);
+    ball->t0y = ball->t0x;
+    ball->dtx = 0;
+    ball->dty = 0;
+}
+
+int computing_thread(void* d) {
+    float v0y = 0, v0x=0;
+    // prompt for x
+    printf("Vitesse Initiale sur x (pixels/s): ");
+    char* v0_str = malloc(100);
+    size_t n = sizeof(v0_str);
+    if (getline(&v0_str, &n, stdin) == -1) {
+        fatalf("Couldnt read from stdin correctly.\n");
+        return -1;
+    }
+    v0x = strtof(v0_str, NULL);
+    // prompt for y
+    memset(v0_str, 0, 100);
+    printf("Vitesse Initiale sur y (pixels/s): ");
+    if (getline(&v0_str, &n, stdin) == -1) {
+        fatalf("Couldnt read from stdin correctly.\n");
+    }
+    v0y = strtof(v0_str, NULL);
+    memset(v0_str, 0, 100);
+    free(v0_str);
+
+    const data_t* data = (data_t*)d;
+    if (data == NULL) {
+        fatalf("Corrupted data ptr\n");
+        return 1;
+    }
+
+    ball_t* ball = data->b;
+
+    reset:
+    setup_ball(ball, v0x, v0y);
+
+    SDL_Event e;
+    u_short counter = 0;
+    u_short collision_counter = 0;
+    while (!data->done) {
+        if (counter == 0) {
+            while (SDL_PollEvent(&e)) {
+                if (e.type == SDL_QUIT) {
+                    free(d);
+                    fatalf("SDL quit.\n");
+                    return 1;
+                }
+            }
+        }
+
+        // actual computing:
+        ball->dtx = get_time(ball->t0x);
+        ball->dty = get_time(ball->t0y);
+        handle_collision(ball, window_size_x, window_size_y, &collision_counter);
+        set_pos(ball);
+        // done
+
+        counter++;
+        if (collision_counter > 500) {
+            goto reset;
+        }
+    }
+    return 0;
+}
+
+int main(void) {
     // before optimization
     // 17% cpu 22.4MB memory......
     // after optimization
     // .
-    float v0y = 0, v0x=0;
-    #pragma GCC diagnostic push
-    #pragma GCC diagnostic ignored "-Wunused-result"
-    /*printf("Vitesse Initiale sur x (pixels/s): ");
-    scanf("%lf", &v0x);
-    printf("Vitesse Initiale sur y (pixels/s): ");
-    scanf("%lf", &v0y);
-    */
-    #pragma GCC diagnostic pop
 
     SDL_Init(SDL_INIT_VIDEO);
-    SDL_Window* window = SDL_CreateWindow("demo", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 0, 0, SDL_WINDOW_FULLSCREEN_DESKTOP);
-    SDL_MaximizeWindow(window);
-    int *wx = (int*)malloc(sizeof(int)), *wy = (int*)malloc(sizeof(int));
+    SDL_Window* window = SDL_CreateWindow("demo", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 800, 600, SDL_WINDOW_SHOWN);
+    int *wx = malloc(sizeof(int)), *wy = malloc(sizeof(int));
     SDL_GetWindowSize(window, wx, wy);
     window_size_x = (u_short)*wx;
     window_size_y = (u_short)*wy;
@@ -137,44 +207,42 @@ int main(void)
         fatalf("Failed to create renderer.\n");
     }
 
-    const int n_seg = 100;
-reset:
+restart:
     ball_t ball;
-    ball.x = (float)window_size_x / 2.f;
-    ball.y = (float)window_size_y / 2.f;
-    ball.v_y = v0y; // pixels/s
-    ball.v_x = v0x; // pixels/s
-    ball.mass = (float)window_size_x / 20.f; // kg
-    set_base_circle(&ball, n_seg);
-    ball.t0x = get_time(0);
-    ball.t0y = ball.t0x;
-    ball.dtx = 0;
-    ball.dty = 0;
-    u_short collision_counter = 0;
 
+    data_t* data = malloc(sizeof(data_t)); data->b = &ball; data->done = 0;
+    SDL_CreateThread(computing_thread, "ball computing", data);
+
+    u_short counter = 0;
     SDL_Event e; int quit = 0; while( quit == 0 ) {
-        while (SDL_PollEvent( &e )) {
-            if( e.type == SDL_QUIT ) quit = 1;
+        if (counter % 100 == 0) {
+            while (SDL_PollEvent( &e )) {
+                if( e.type == SDL_QUIT ) {
+                    quit = 1;
+                }
+                if ( e.type == SDL_KEYUP ) {
+                    if ( e.key.keysym.sym == SDLK_ESCAPE ) {
+                        data->done = 1;
+                        free(data);
+                        data = NULL;
+                        goto restart;
+                    }
+                }
+            }
         }
-        ball.dtx = get_time(ball.t0x);
-        ball.dty = get_time(ball.t0y);
 
-        handle_collision(&ball, window_size_x, window_size_y, &collision_counter);
-        const pos_t p = get_pos(&ball);
         if (SDL_RenderClear(renderer)) {
-            fatalf("%s\n", SDL_GetError());
+            fatalf("Failed to clear render: %s\n", SDL_GetError());
         }
-
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-        drawCircle(renderer, &ball, ball.x + p.x, (float)window_size_y - (ball.y+p.y), n_seg);
+        drawCircle(renderer, &ball, ball.x + ball.p.x, (float)window_size_y - (ball.y+ball.p.y), ball.n_seg);
         SDL_SetRenderDrawColor(renderer, 10, 10, 10, 255);
         SDL_RenderPresent(renderer);
-        if (collision_counter > 500) {
-            goto reset;
-        }
+        counter++;
     }
-
+    data->done = 1;
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
+    free(data);
     return 0;
 }

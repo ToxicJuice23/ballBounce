@@ -60,7 +60,7 @@ double get_time(const double start) {
     return s - start;
 }
 
-pos_t get_pos(const ball_t* ball) {
+pos_t set_pos(const ball_t* ball) {
     const double dx = ball->v_x * (ball->dtx);
     const double dy = ball->v_y * ball->dty + 0.5f * G * ball->dty * ball->dty; // removed pow(dty, 2); for speed
     return (pos_t){dx, dy};
@@ -69,11 +69,11 @@ pos_t get_pos(const ball_t* ball) {
 int handle_collision(ball_t* ball, int size_x, int size_y, const int* counter) {
     // ball, window size as args
     // returns the angle of collision (in radians)
-    const pos_t pos = get_pos(ball);
+    const pos_t pos = set_pos(ball);
     const double x = pos.x + ball->x, y = pos.y + ball->y;
     int _case = 0;
     if ((x+ball->mass > size_x && (_case = 1)) || (x - ball->mass < 0 && (_case = 2)) || (y + ball->mass > size_y && (_case = 3)) || (y - ball->mass < 0 && (_case = 4))) {
-        const pos_t p = get_pos(ball);
+        const pos_t p = set_pos(ball);
         switch (_case) {
             case 3:
                 case 4:
@@ -155,7 +155,7 @@ reset:
         ball.dty = get_time(ball.t0y);
 
         handle_collision(&ball, window_size_x, window_size_y, &coll_counter);
-        const pos_t p = get_pos(&ball);
+        const pos_t p = set_pos(&ball);
         if (SDL_RenderClear(renderer)) {
             fatalf("%s\n", SDL_GetError());
         }
