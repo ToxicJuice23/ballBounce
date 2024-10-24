@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 # Project name and version
-project(BallSimulation VERSION 1.0)
+project(ballBounce VERSION 1.0)
 
 # Set C standard
 set(CMAKE_C_STANDARD 11)
@@ -18,9 +18,7 @@ find_package(SDL2 REQUIRED)
 include_directories(${SDL2_INCLUDE_DIRS})
 
 # Add the executable
-add_executable(ball ball.c)
-add_executable(fast_ball fast_ball.c fast_ball.h)
+add_executable(ball_sdl ball_sdl.c ball_sdl.h)
 
 # Link SDL2 and math library
-target_link_libraries(ball ${SDL2_LIBRARIES} m)
-target_link_libraries(fast_ball ${SDL2_LIBRARIES} m)
+target_link_libraries(ball_sdl ${SDL2_LIBRARIES} m)

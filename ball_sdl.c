@@ -1,11 +1,13 @@
-#include "fast_ball.h"
+#include "ball_sdl.h"
+
+#include <limits.h>
 /*
 ATTENTION POSSIBLE CONTRIBUTERS
 -------------------------------
 All of the functions should be using radians for consistency
 -------------------------------
 todo
-    - listen for keystrokes so for example x=500(enter) or x=24f(esc)x=500 will set initial speed on x to 500 and restart
+    - add option to insert more balls and make them collide.
 */
 
 void fatalf(const char* fmt, ...) {
@@ -49,6 +51,7 @@ void drawCircle(SDL_Renderer* renderer, ball_t* ball, const float x, const float
     memcpy(points, ball->base_circle, sizeof(SDL_FPoint) * (n+1));
     if (points == NULL) {
         fatalf("Memory is null.\n");
+        return;
     }
 
     for (int i = 0; i <= n; i++) {
@@ -128,24 +131,6 @@ void setup_ball(ball_t* ball, const float v0x, const float v0y) {
 
 int computing_thread(void* d) {
     float v0y = 0, v0x=0;
-    // prompt for x
-    printf("Vitesse Initiale sur x (pixels/s): ");
-    char* v0_str = malloc(100);
-    size_t n = sizeof(v0_str);
-    if (getline(&v0_str, &n, stdin) == -1) {
-        fatalf("Couldnt read from stdin correctly.\n");
-        return -1;
-    }
-    v0x = strtof(v0_str, NULL);
-    // prompt for y
-    memset(v0_str, 0, 100);
-    printf("Vitesse Initiale sur y (pixels/s): ");
-    if (getline(&v0_str, &n, stdin) == -1) {
-        fatalf("Couldnt read from stdin correctly.\n");
-    }
-    v0y = strtof(v0_str, NULL);
-    memset(v0_str, 0, 100);
-    free(v0_str);
 
     const data_t* data = (data_t*)d;
     if (data == NULL) {
@@ -154,6 +139,8 @@ int computing_thread(void* d) {
     }
 
     ball_t* ball = data->b;
+
+    v0x = ball->v0_x; v0y = ball->v0_y;
 
     reset:
     setup_ball(ball, v0x, v0y);
@@ -187,6 +174,62 @@ int computing_thread(void* d) {
     return 0;
 }
 
+int key_buf_to_str(const SDL_Keycode* key_buf, char* key_str) {
+    if (key_buf == NULL || key_str == NULL) {
+        return 1;
+    }
+    for (int i=0; i < 100; i++) {
+        key_str[i] = key_buf[i] > UCHAR_MAX ? '\0' : (char)key_buf[i];
+        if (key_str[i] == 0) {
+            break;
+        }
+    }
+    return 0;
+}
+
+void strip_str(const char* str1, char* str2, const int n) {
+    if (str1 == NULL || str2 == NULL) {
+        return;
+    }
+    memset(str2, 0, n);
+    int counter = 0;
+    for (int i = 0; i < n; i++) {
+        if (!isalpha(str1[i]) || !isdigit(str1[i])) {
+            str2[counter] = (char)tolower(str1[i]);
+            counter++;
+        }
+    }
+    str2[counter] = 0;
+}
+
+int sep_str(const char* res, char* var_name, char* val, const u_int n) {
+    if (res == NULL || var_name == NULL || val == NULL || n == 0) {
+        return -1;
+    }
+
+    memset(var_name, 0, n);
+    memset(val, 0, n);
+
+    int space_index = -1;
+    for (u_int i = 0; i < n; i++) {
+        if (res[i] == '=') {
+            space_index = (int)i;
+        } else if (space_index == -1) {
+            var_name[i] = res[i];
+        } else {
+            val[i-space_index-1] = res[i];
+        }
+    }
+    var_name[space_index] = 0;
+
+    if (space_index == -1) {
+        return space_index;
+    }
+
+    // slice strs
+    return 0;
+}
+
 int main(void) {
     // before optimization
     // 17% cpu 22.4MB memory......
@@ -207,25 +250,69 @@ int main(void) {
         fatalf("Failed to create renderer.\n");
     }
 
-restart:
     ball_t ball;
+    ball.v0_x = 0;
+    ball.v0_y = 0;
+    const pair_t vx = (pair_t){"vx", &ball.v0_x};
+    const pair_t vy = (pair_t){"vy", &ball.v0_y};
+    const pair_t g = (pair_t){"g", &G};
+    #define nvars 3
+    const pair_t vars[] = {vx, vy, g};
 
+restart:
     data_t* data = malloc(sizeof(data_t)); data->b = &ball; data->done = 0;
     SDL_CreateThread(computing_thread, "ball computing", data);
 
-    u_short counter = 0;
-    SDL_Event e; int quit = 0; while( quit == 0 ) {
-        if (counter % 100 == 0) {
-            while (SDL_PollEvent( &e )) {
-                if( e.type == SDL_QUIT ) {
-                    quit = 1;
+    SDL_Keycode* key_buf = malloc(sizeof(SDL_Keycode) * 100);
+    u_short buf_index = 0;
+    memset(key_buf, 0, sizeof(SDL_Keycode) * 100);
+
+    SDL_Event e; int quit = 0;
+    while( quit == 0 ) {
+        while (SDL_PollEvent( &e )) {
+            if( e.type == SDL_QUIT ) {
+                quit = 1;
+            }
+            if ( e.type == SDL_KEYUP ) {
+                if ( e.key.keysym.sym == SDLK_ESCAPE ) {
+                    data->done = 1;
+                    free(data);
+                    data = NULL;
+                    buf_index = 0;
+                    free(key_buf);
+                    goto restart;
                 }
-                if ( e.type == SDL_KEYUP ) {
-                    if ( e.key.keysym.sym == SDLK_ESCAPE ) {
-                        data->done = 1;
-                        free(data);
-                        data = NULL;
-                        goto restart;
+                const SDL_Keycode k = e.key.keysym.sym;
+                if ( k == SDLK_BACKSPACE || k == SDLK_DELETE) {
+                    if (buf_index > 0) {
+                        key_buf[buf_index-1] = 0;
+                        buf_index--;
+                    }
+                } else if ( k == SDLK_RETURN ) {
+                    char* key_str = malloc(100);
+                    key_buf_to_str(key_buf, key_str);
+                    char* res = malloc(100);
+                    strip_str(key_str, res, (int)strlen(key_str));
+                    char *var_name = malloc(100), *val_str = malloc(100);
+                    sep_str(res, var_name, val_str, (u_int)strlen(key_str));
+                    const float val = strtof(val_str, NULL);
+                    for (int i=0; i < nvars; i++) {
+                        if (strcmp(vars[i].name, var_name) == 0) {
+                            *(float*)vars[i].var_ptr = val;
+                        }
+                    }
+
+                    free(var_name);
+                    free(val_str);
+                    free(key_str);
+                    free(res);
+                    free(key_buf);
+                    free(data);
+                    goto restart;
+                } else {
+                    if (buf_index < 99) {
+                        key_buf[buf_index] = k;
+                        buf_index++;
                     }
                 }
             }
@@ -233,16 +320,24 @@ restart:
 
         if (SDL_RenderClear(renderer)) {
             fatalf("Failed to clear render: %s\n", SDL_GetError());
+            goto err;
         }
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
         drawCircle(renderer, &ball, ball.x + ball.p.x, (float)window_size_y - (ball.y+ball.p.y), ball.n_seg);
         SDL_SetRenderDrawColor(renderer, 10, 10, 10, 255);
         SDL_RenderPresent(renderer);
-        counter++;
     }
     data->done = 1;
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     free(data);
+    free(key_buf);
     return 0;
+    err:
+    data->done = 1;
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    free(data);
+    free(key_buf);
+    return 1;
 }
