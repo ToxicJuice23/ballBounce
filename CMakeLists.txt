@@ -18,7 +18,11 @@ find_package(SDL2 REQUIRED)
 include_directories(${SDL2_INCLUDE_DIRS})
 
 # Add the executable
-add_executable(ball_sdl ball_sdl.c ball_sdl.h)
+add_executable(ball_sdl main.h
+        ball_sdl.c
+        string_functions.c
+        main.c
+)
 
 # Link SDL2 and math library
 target_link_libraries(ball_sdl ${SDL2_LIBRARIES} m)

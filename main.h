@@ -1,5 +1,5 @@
-#ifndef FAST_BALL_H
-#define FAST_BALL_H
+#ifndef MAIN_H
+#define MAIN_H
 #include <errno.h>
 #include <unistd.h>
 #include <math.h>
@@ -8,13 +8,14 @@
 #include <SDL2/SDL_thread.h>
 #include <signal.h>
 #include <time.h>
+#include <limits.h>
 #define PI 3.141592653589
 #define MAX_VELOCITY 2
 
 u_short window_size_x = 1;
 u_short window_size_y = 1;
-float G = 200 * -9.8; // 200 px/m * -9.8 m/s^2
-static const float clock_divisor = 1.0 / CLOCKS_PER_SEC;
+float G = 200.f * -9.8f; // 200 px/m * -9.8 m/s^2
+float CLOCK_DIVISOR = 1.f / CLOCKS_PER_SEC;
 
 typedef struct {
     float x, y;
@@ -43,5 +44,19 @@ typedef struct {
 } pair_t;
 
 typedef struct {ball_t* b; uint8_t done;} data_t;
+
+float calculate_velocity_elastic_collision( float v);
+void set_base_circle( ball_t* ball);
+void drawCircle( SDL_Renderer* renderer, ball_t* ball,  float x,  float y,  int n);
+float get_time( float start);
+void set_pos( ball_t* ball);
+int handle_collision( ball_t* ball,  u_short size_x,  u_short size_y, u_short* counter);
+void setup_ball( ball_t* ball, float v0x, float v0y);
+int computing_thread( void* d);
+int key_buf_to_str(const SDL_Keycode* key_buf, char* key_str);
+void strip_str( char** str,  int n);
+int sep_str(const char* res, char* var_name, char* val,  u_int n);
+void fatalf(const char* fmt, ...);
+SDL_Window* setup_window_sdl( void );
 
 #endif // BALL_H

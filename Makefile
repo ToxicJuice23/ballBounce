@@ -4,9 +4,9 @@ CFLAGS = -Wall -Wextra -O3
 LDFLAGS = $(shell sdl2-config --cflags --libs) -lm
 
 # Source and target
-HEADERS = ball_sdl.h
+HEADERS = main.h
 TARGET = ball_sdl
-SRC = ball_sdl.c
+SRC = ball_sdl.c string_functions.c main.c
 
 # Default target
 all: $(TARGET)
