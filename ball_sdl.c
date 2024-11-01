@@ -8,7 +8,6 @@ todo
     - add option to insert more balls and make them collide.
 */
 
-
 float calculate_velocity_elastic_collision(const float v) {
     // for simplicity, simply multiply by 0.8 and inverse direction
     return -0.9f*v;
@@ -62,7 +61,7 @@ float get_time(const float start) {
 
 void set_pos(ball_t* ball) {
     const float dx = ball->v_x * (ball->dtx);
-    const float dy = ball->v_y * ball->dty + 0.5f * G * ball->dty * ball->dty; // removed pow(dty, 2); for speed
+    const float dy = ball->v_y * ball->dty + 0.5f * ball->G * ball->dty * ball->dty; // removed pow(dty, 2); for speed
     ball->p.x = dx; ball->p.y = dy;
 }
 
@@ -77,7 +76,7 @@ int handle_collision(ball_t* ball, const u_short size_x, const u_short size_y, u
         switch (_case) {
             case 3:
                 case 4:
-                ball->v_y = calculate_velocity_elastic_collision(ball->v_y + G*ball->dty);
+                ball->v_y = calculate_velocity_elastic_collision(ball->v_y + ball->G*ball->dty);
                 ball->y += ball->p.y;
                 ball->dty = 0;
                 ball->t0y = get_time(0);
@@ -108,25 +107,14 @@ int handle_collision(ball_t* ball, const u_short size_x, const u_short size_y, u
 
 void setup_ball(ball_t* ball, const float v0x, const float v0y) {
     ball->n_seg = 100;
-    ball->x = (float)window_size_x / 2.f;
-    ball->y = (float)window_size_y / 2.f;
+    ball->x = (float)ball->window_size_x / 2.f;
+    ball->y = (float)ball->window_size_y / 2.f;
     ball->v_y = v0y; // pixels/s
     ball->v_x = v0x; // pixels/s
-    ball->mass = (float)window_size_x / 20.f; // kg
+    ball->mass = (float)ball->window_size_x / 20.f; // kg
     set_base_circle(ball);
     ball->t0x = get_time(0);
     ball->t0y = ball->t0x;
     ball->dtx = 0;
     ball->dty = 0;
-}
-
-SDL_Window* setup_window_sdl( void ) {
-    SDL_Init(SDL_INIT_VIDEO);
-    SDL_Window* window = SDL_CreateWindow("ball bounce", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 800, 600, SDL_WINDOW_SHOWN);
-    int *wx = malloc(sizeof(int)), *wy = malloc(sizeof(int));
-    SDL_GetWindowSize(window, wx, wy);
-    window_size_x = (u_short)*wx;
-    window_size_y = (u_short)*wy;
-    free(wx); free(wy);
-    return window;
 }

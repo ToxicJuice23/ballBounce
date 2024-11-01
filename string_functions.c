@@ -25,18 +25,26 @@ int key_buf_to_str(const SDL_Keycode* key_buf, char* key_str) {
     return 0;
 }
 
+int is_allowed(const char c) {
+    const char allowed_extra[] = {'=', '+', '-'}; int len = 3;
+    for (int i = 0; i < len; i++) {
+        if (c == allowed_extra[i] || isalpha(c) || isdigit(c)) return 1;
+    }
+    return 0;
+}
+
 void strip_str(char** str, const int n) {
-    if (str == NULL) {
+    if (str == NULL || *str == NULL) {
         return;
     }
     int counter = 0;
     for (int i = 0; i < n; i++) {
-        if (isalpha(str[i]) || isdigit(str[i])) {
+        if (is_allowed((*str)[i])) {
             (*str)[counter] = (char)tolower((*str)[i]);
             counter++;
         }
     }
-    str[counter] = 0;
+    (*str)[counter] = 0;
 }
 
 int sep_str(const char* res, char* var_name, char* val, const u_int n) {

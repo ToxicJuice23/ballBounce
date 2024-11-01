@@ -10,30 +10,40 @@ int main(void) {
     // .
 
     // setup window and renderer
-    SDL_Window* window = setup_window_sdl();
+    SDL_Init(SDL_INIT_VIDEO);
+    SDL_Window* window = SDL_CreateWindow("ball bounce", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 800, 600, SDL_WINDOW_SHOWN);
+    int *wx = malloc(sizeof(int)), *wy = malloc(sizeof(int));
+    SDL_GetWindowSize(window, wx, wy);
+    const u_short window_size_x = *wx;
+    const u_short window_size_y = *wy;
+    free(wx); free(wy);
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, 0);
     if (renderer == NULL) {
         fatalf("Failed to create renderer.\n");
         return -1;
     }
-
     ball_t ball;
+
     ball.v0_x = 0;
     ball.v0_y = 0;
+    ball.window_size_x = window_size_x;
+    ball.window_size_y = window_size_y;
+    ball.G = 200.f * -9.8f; // 200 px/m * -9.8 m/s^2
     // define pair array for in game vars
-    const pair_t vars[] = {(pair_t){"vx",
-        &ball.v0_x},
+    pair_t vars[] = {
+        (pair_t){"vx",&ball.v0_x},
         (pair_t){"vy", &ball.v0_y},
-        (pair_t){"g", &G},
+        (pair_t){"g", &ball.G},
         // null terminator
-        (pair_t){NULL, NULL}};
+        (pair_t){NULL, NULL}
+    };
 
     // set length of the array
     int nvars = 0;
     // explanation: ++nvars < -1 will evaluate to false, it only gets evaluated if the other part of the if is false so its like if else.
     while (nvars >= 0) { if ((vars[nvars].name == NULL && vars[nvars].var_ptr == NULL) || ++nvars < -1) break;}
     // dont kill the thread every restart lol
-    data_t* data = malloc(sizeof(data_t)); data->b = &ball; data->done = 0;
+    data_t* data = malloc(sizeof(data_t)); data->b = &ball; data->done = 0; data->reset = 0;
     SDL_CreateThread(computing_thread, "ball computing", data);
 
 restart:
@@ -49,9 +59,10 @@ restart:
                 break;
             }
             if ( e.type == SDL_KEYUP ) {
-                const SDL_Keycode k = e.key.keysym.sym;
+                SDL_Keycode k = e.key.keysym.sym;
                 if ( k == SDLK_ESCAPE ) {
                     free(key_buf);
+                    data->reset = 1;
                     goto restart;
                 }
                 if ( k == SDLK_BACKSPACE || k == SDLK_DELETE) {
@@ -60,14 +71,14 @@ restart:
                         buf_index--;
                     }
                 } else if ( k == SDLK_RETURN ) {
-                    if (buf_index == 0) goto l84;
+                    if (buf_index == 0) {data->reset = 1; goto restart;}
 
                     // allocate
                     char* key_str = malloc(100), *var_name = malloc(100), *val_str = malloc(100);;
                     key_buf_to_str(key_buf, key_str);
                     strip_str(&key_str, (int)strlen(key_str));
-
                     sep_str(key_str, var_name, val_str, (u_int)strlen(key_str));
+
                     const float val = strtof(val_str, NULL);
                     for (int i=0; i < nvars; i++) {
                         if (strcmp(vars[i].name, var_name) == 0) {
@@ -79,9 +90,9 @@ restart:
                     free(val_str);
                     free(key_str);
                     free(key_buf);
+                    data->reset = 1;
                     goto restart;
                 } else {
-                    l84:
                     if (buf_index < 99) {
                         key_buf[buf_index] = k;
                         buf_index++;
@@ -95,7 +106,7 @@ restart:
         }
         // draw frame
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-        drawCircle(renderer, &ball, ball.x + ball.p.x, (float)window_size_y - (ball.y+ball.p.y), ball.n_seg);
+        drawCircle(renderer, &ball, ball.x + ball.p.x, (float)ball.window_size_y - (ball.y+ball.p.y), ball.n_seg);
         SDL_SetRenderDrawColor(renderer, 10, 10, 10, 255);
         SDL_RenderPresent(renderer);
     }
@@ -109,20 +120,18 @@ restart:
 }
 
 int computing_thread(void* d) {
-    float v0y = 0, v0x=0;
-
-    const data_t* data = (data_t*)d;
+    data_t* data = (data_t*)d;
     if (data == NULL) {
         fatalf("Corrupted data ptr\n");
         return 1;
     }
 
     ball_t* ball = data->b;
-
-    v0x = ball->v0_x; v0y = ball->v0_y;
+    ball->v0_x = 0;
+    ball->v0_y = 0;
 
     reset:
-    setup_ball(ball, v0x, v0y);
+    setup_ball(ball, ball->v0_x, ball->v0_y);
 
     SDL_Event e;
     u_short counter = 0;
@@ -141,12 +150,17 @@ int computing_thread(void* d) {
         // actual computing:
         ball->dtx = get_time(ball->t0x);
         ball->dty = get_time(ball->t0y);
-        handle_collision(ball, window_size_x, window_size_y, &collision_counter);
+        handle_collision(ball, ball->window_size_x, ball->window_size_y, &collision_counter);
         set_pos(ball);
         // done
 
         counter++;
         if (collision_counter > 500) {
+            goto reset;
+        }
+
+        if (data->reset) {
+            data->reset = 0;
             goto reset;
         }
     }

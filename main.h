@@ -11,11 +11,7 @@
 #include <limits.h>
 #define PI 3.141592653589
 #define MAX_VELOCITY 2
-
-u_short window_size_x = 1;
-u_short window_size_y = 1;
-float G = 200.f * -9.8f; // 200 px/m * -9.8 m/s^2
-float CLOCK_DIVISOR = 1.f / CLOCKS_PER_SEC;
+#define CLOCK_DIVISOR (1.f / CLOCKS_PER_SEC)
 
 typedef struct {
     float x, y;
@@ -32,10 +28,12 @@ typedef struct {
             dtx, // Δt since last collision on x-axis or since start
             dty, // Δt since last collision with floor or ceiling
             v0_x, // initial speed on x at instant 0
-            v0_y; // initial speed on y at instant 0
+            v0_y, // initial speed on y at instant 0
+            G; // gravity constant
     int n_seg;
     SDL_FPoint* base_circle;
     pos_t p; // current position
+    u_short window_size_x, window_size_y;
 } ball_t;
 
 typedef struct {
@@ -43,7 +41,7 @@ typedef struct {
     void* var_ptr;
 } pair_t;
 
-typedef struct {ball_t* b; uint8_t done;} data_t;
+typedef struct {ball_t* b; uint8_t done; uint8_t reset;} data_t;
 
 float calculate_velocity_elastic_collision( float v);
 void set_base_circle( ball_t* ball);
@@ -57,6 +55,6 @@ int key_buf_to_str(const SDL_Keycode* key_buf, char* key_str);
 void strip_str( char** str,  int n);
 int sep_str(const char* res, char* var_name, char* val,  u_int n);
 void fatalf(const char* fmt, ...);
-SDL_Window* setup_window_sdl( void );
+int is_allowed(const char c);
 
 #endif // BALL_H
