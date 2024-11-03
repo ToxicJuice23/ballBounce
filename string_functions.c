@@ -5,6 +5,7 @@
 #include "main.h"
 
 void fatalf(const char* fmt, ...) {
+    // printf and exit with error
     va_list args;
     va_start(args, fmt);
     vfprintf(stderr, fmt, args);
@@ -13,11 +14,12 @@ void fatalf(const char* fmt, ...) {
 }
 
 int key_buf_to_str(const SDL_Keycode* key_buf, char* key_str) {
+    // transform array of keys into string
     if (key_buf == NULL || key_str == NULL) {
-        return 1;
+        return -1;
     }
     for (int i=0; i < 100; i++) {
-        key_str[i] = key_buf[i] > UCHAR_MAX ? '\0' : (char)key_buf[i];
+        key_str[i] = key_buf[i] > UCHAR_MAX ? ' ' : (char)key_buf[i];
         if (key_str[i] == 0) {
             break;
         }
@@ -26,25 +28,31 @@ int key_buf_to_str(const SDL_Keycode* key_buf, char* key_str) {
 }
 
 int is_allowed(const char c) {
-    const char allowed_extra[] = {'=', '+', '-'}; int len = 3;
+    // check if char is allowed in variable strings
+    const char allowed_extra[] = {'=', '+', '-'}; const int len = 3;
     for (int i = 0; i < len; i++) {
         if (c == allowed_extra[i] || isalpha(c) || isdigit(c)) return 1;
     }
     return 0;
 }
 
-void strip_str(char** str, const int n) {
+int strip_str(char** str, const int n) {
+    // remove unwanted characters
     if (str == NULL || *str == NULL) {
-        return;
+        return -1;
     }
     int counter = 0;
     for (int i = 0; i < n; i++) {
+        if ((*str)[i] == '\0') {
+            return -1;
+        }
         if (is_allowed((*str)[i])) {
             (*str)[counter] = (char)tolower((*str)[i]);
             counter++;
         }
     }
     (*str)[counter] = 0;
+    return 0;
 }
 
 int sep_str(const char* res, char* var_name, char* val, const u_int n) {

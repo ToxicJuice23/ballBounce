@@ -1,14 +1,6 @@
-//
-// Created by jujur on 30/10/24.
-//
 #include "main.h"
 
 int main(void) {
-    // before optimization
-    // 17% cpu 22.4MB memory......
-    // after optimization
-    // .
-
     // setup window and renderer
     SDL_Init(SDL_INIT_VIDEO);
     SDL_Window* window = SDL_CreateWindow("ball bounce", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 800, 600, SDL_WINDOW_SHOWN);
@@ -42,7 +34,7 @@ int main(void) {
     int nvars = 0;
     // explanation: ++nvars < -1 will evaluate to false, it only gets evaluated if the other part of the if is false so its like if else.
     while (nvars >= 0) { if ((vars[nvars].name == NULL && vars[nvars].var_ptr == NULL) || ++nvars < -1) break;}
-    // dont kill the thread every restart lol
+    // don't kill the thread every restart lol
     data_t* data = malloc(sizeof(data_t)); data->b = &ball; data->done = 0; data->reset = 0;
     SDL_CreateThread(computing_thread, "ball computing", data);
 
@@ -59,7 +51,7 @@ restart:
                 break;
             }
             if ( e.type == SDL_KEYUP ) {
-                SDL_Keycode k = e.key.keysym.sym;
+                const SDL_Keycode k = e.key.keysym.sym;
                 if ( k == SDLK_ESCAPE ) {
                     free(key_buf);
                     data->reset = 1;
@@ -74,24 +66,29 @@ restart:
                     if (buf_index == 0) {data->reset = 1; goto restart;}
 
                     // allocate
-                    char* key_str = malloc(100), *var_name = malloc(100), *val_str = malloc(100);;
-                    key_buf_to_str(key_buf, key_str);
-                    strip_str(&key_str, (int)strlen(key_str));
-                    sep_str(key_str, var_name, val_str, (u_int)strlen(key_str));
+                    char* key_str = malloc(100), *var_name = malloc(100), *val_str = malloc(100);
+                    // while break logic instead of goto for safety
+                    while (1) {
+                        if (key_buf_to_str(key_buf, key_str) == -1) break;
+                        if (strip_str(&key_str, (int)strlen(key_str)) == -1) break;
+                        if (sep_str(key_str, var_name, val_str, (u_int)strlen(key_str)) == -1) break;
 
-                    const float val = strtof(val_str, NULL);
-                    for (int i=0; i < nvars; i++) {
-                        if (strcmp(vars[i].name, var_name) == 0) {
-                            *(float*)vars[i].var_ptr = val;
+                        const float val = strtof(val_str, NULL);
+                        for (int i=0; i < nvars; i++) {
+                            if (strcmp(vars[i].name, var_name) == 0) {
+                                *(float*)vars[i].var_ptr = val;
+                            }
                         }
+                        break;
                     }
-
                     free(var_name);
                     free(val_str);
                     free(key_str);
                     free(key_buf);
                     data->reset = 1;
                     goto restart;
+                } else if (k == SDLK_q) {
+                    goto done;
                 } else {
                     if (buf_index < 99) {
                         key_buf[buf_index] = k;
@@ -109,8 +106,10 @@ restart:
         drawCircle(renderer, &ball, ball.x + ball.p.x, (float)ball.window_size_y - (ball.y+ball.p.y), ball.n_seg);
         SDL_SetRenderDrawColor(renderer, 10, 10, 10, 255);
         SDL_RenderPresent(renderer);
+        SDL_Delay(5);
     }
     // clean up
+    done:
     data->done = 1;
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);

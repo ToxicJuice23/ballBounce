@@ -52,7 +52,7 @@ int handle_collision( ball_t* ball,  u_short size_x,  u_short size_y, u_short* c
 void setup_ball( ball_t* ball, float v0x, float v0y);
 int computing_thread( void* d);
 int key_buf_to_str(const SDL_Keycode* key_buf, char* key_str);
-void strip_str( char** str,  int n);
+int strip_str( char** str,  int n);
 int sep_str(const char* res, char* var_name, char* val,  u_int n);
 void fatalf(const char* fmt, ...);
 int is_allowed(const char c);
