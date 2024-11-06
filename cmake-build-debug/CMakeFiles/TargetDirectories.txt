@@ -1,3 +1,0 @@
-/home/jujur/coding/c/physics/ballBounce/cmake-build-debug/CMakeFiles/ball_sdl.dir
-/home/jujur/coding/c/physics/ballBounce/cmake-build-debug/CMakeFiles/edit_cache.dir
-/home/jujur/coding/c/physics/ballBounce/cmake-build-debug/CMakeFiles/rebuild_cache.dir
