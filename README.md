@@ -1,4 +1,6 @@
 # Usage
+### ./ball_sdl [file] 
+#### file: an optional file to provide initial values of the variables
 - build using either cmake or make
 - once built, simply run the executable ball_sdl
 - the inital velocities will be 0 on both axis

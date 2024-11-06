@@ -1,14 +1,21 @@
 #ifndef MAIN_H
 #define MAIN_H
 #include <errno.h>
+
+#ifdef WIN32
+#include <io.h>
+#define access _access
+#else
 #include <unistd.h>
+#endif
+
 #include <math.h>
 #include <stdarg.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_thread.h>
-#include <signal.h>
 #include <time.h>
 #include <limits.h>
+#include <fcntl.h>
 #define PI 3.141592653589
 #define MAX_VELOCITY 2
 #define CLOCK_DIVISOR (1.f / CLOCKS_PER_SEC)

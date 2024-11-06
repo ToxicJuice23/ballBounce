@@ -4,8 +4,6 @@ ATTENTION POSSIBLE CONTRIBUTERS
 -------------------------------
 All of the functions should be using radians for consistency
 -------------------------------
-todo
-    - add option to insert more balls and make them collide.
 */
 
 float calculate_velocity_elastic_collision(const float v) {

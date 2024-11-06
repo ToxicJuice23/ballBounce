@@ -1,6 +1,19 @@
 #include "main.h"
 
-int main(void) {
+int main(const int argc, char** argv) {
+    FILE* input = stdin;
+    if (access(argv[1], F_OK) && argc > 1) {
+        printf("Usage:\n%s [file]\nfile: an optional file to provide initial values of the variables\n", argv[0]);
+        return 1;
+    }
+    if (argc > 1) {
+        input = fopen(argv[1], "r");
+    }
+
+    if (input == NULL) {
+        fatalf("Error opening provided file.");
+    }
+
     // setup window and renderer
     SDL_Init(SDL_INIT_VIDEO);
     SDL_Window* window = SDL_CreateWindow("ball bounce", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 800, 600, SDL_WINDOW_SHOWN);
@@ -30,14 +43,35 @@ int main(void) {
         (pair_t){NULL, NULL}
     };
 
-    // set length of the array
-    int nvars = 0;
-    // explanation: ++nvars < -1 will evaluate to false, it only gets evaluated if the other part of the if is false so its like if else.
-    while (nvars >= 0) { if ((vars[nvars].name == NULL && vars[nvars].var_ptr == NULL) || ++nvars < -1) break;}
     // don't kill the thread every restart lol
     data_t* data = malloc(sizeof(data_t)); data->b = &ball; data->done = 0; data->reset = 0;
     SDL_CreateThread(computing_thread, "ball computing", data);
 
+    // set length of the array
+    int nvars = 0;
+    // explanation: ++nvars < -1 will evaluate to false, it only gets evaluated if the other part of the if is false so its like if else.
+    while (nvars >= 0) { if ((vars[nvars].name == NULL && vars[nvars].var_ptr == NULL) || ++nvars < -1) break;}
+
+    if (input == stdin) goto restart;
+    
+    char* line = malloc(100);
+    size_t len = 100;
+    while (getline(&line, &len, input) != -1 && input != stdin) {
+        char* var_name = malloc(strlen(line)), *val_str = malloc(strlen(line));
+
+        if (strip_str(&line, (int)strlen(line)) == -1) continue;
+        if (sep_str(line, var_name, val_str, strlen(line)) == -1) continue;
+        const float val = strtof(val_str, NULL);
+        for (int i=0; i < nvars; i++) {
+            if (strcmp(vars[i].name, var_name) == 0) {
+                *(float*)vars[i].var_ptr = val;
+            }
+        }
+        data->reset = 1;
+        free(var_name); free(val_str);
+    }
+
+    free(line);
 restart:
     SDL_Keycode* key_buf = malloc(sizeof(SDL_Keycode) * 100);
     u_short buf_index = 0;
@@ -126,8 +160,6 @@ int computing_thread(void* d) {
     }
 
     ball_t* ball = data->b;
-    ball->v0_x = 0;
-    ball->v0_y = 0;
 
     reset:
     setup_ball(ball, ball->v0_x, ball->v0_y);
