@@ -1,0 +1,7 @@
+- general idea: bonk.io but native
+- environment obj that defines where everything actually is for collisions
+- acceleration on x when arrow is pressed
+- acceleration on y when arrows are pressed
+- 2 player local mode
+- multiplayer online mode
+- eventually add more than one lobby/server

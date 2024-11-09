@@ -36,7 +36,9 @@ typedef struct {
             dty, // Δt since last collision with floor or ceiling
             v0_x, // initial speed on x at instant 0
             v0_y, // initial speed on y at instant 0
-            G; // gravity constant
+            G, // gravity constant
+            Fx, // the external force that is applied on x
+            Fy; // the external force applied on y
     int n_seg;
     SDL_FPoint* base_circle;
     pos_t p; // current position

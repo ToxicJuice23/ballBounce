@@ -1,5 +1,7 @@
 #include "main.h"
 
+// 200 pixels ~= 1 meter (used for physics)
+
 int main(const int argc, char** argv) {
     FILE* input = stdin;
     if (argc > 1 && access(argv[1], F_OK)) {
