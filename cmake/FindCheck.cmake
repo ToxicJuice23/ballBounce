@@ -1,20 +1,40 @@
-find_path(CHECK_INCLUDE_DIR
-        NAMES check.h
-        PATH_SUFFIXES check
-        DOC "Path to the Check headers"
-)
-
-find_library(CHECK_LIBRARIES
-        NAMES check
-        DOC "Check testing library"
-)
-
-# Mark as found if both include directory and library are found
-include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(Check DEFAULT_MSG CHECK_LIBRARIES CHECK_INCLUDE_DIR)
-
-# If found, set variables for use in the main CMakeLists.txt
-if(CHECK_FOUND)
-    set(CHECK_INCLUDE_DIRS ${CHECK_INCLUDE_DIR})
-    set(CHECK_LIBRARIES ${CHECK_LIBRARIES})
+if(NOT PKG_CONFIG_FOUND)
+    include(CMakeFindDependencyMacro)
+    find_dependency(PkgConfig)
 endif()
+
+# Take care about check.pc settings
+PKG_SEARCH_MODULE( CHECK Check )
+
+# Look for CHECK include dir and libraries
+IF( NOT CHECK_FOUND )
+    IF ( CHECK_INSTALL_DIR )
+        MESSAGE ( STATUS "Using override CHECK_INSTALL_DIR to find Check" )
+        SET ( CHECK_INCLUDE_DIR  "${CHECK_INSTALL_DIR}/include" )
+        SET ( CHECK_INCLUDE_DIRS "${CHECK_INCLUDE_DIR}" )
+        FIND_LIBRARY( CHECK_LIBRARY NAMES check PATHS "${CHECK_INSTALL_DIR}/lib" )
+        FIND_LIBRARY( COMPAT_LIBRARY NAMES compat PATHS "${CHECK_INSTALL_DIR}/lib" )
+        SET ( CHECK_LIBRARIES "${CHECK_LIBRARY}" "${COMPAT_LIBRARY}" )
+    ELSE ( CHECK_INSTALL_DIR )
+        FIND_PATH( CHECK_INCLUDE_DIR check.h )
+        FIND_LIBRARY( CHECK_LIBRARIES NAMES check )
+    ENDIF ( CHECK_INSTALL_DIR )
+
+    IF ( CHECK_INCLUDE_DIR AND CHECK_LIBRARIES )
+        SET( CHECK_FOUND 1 )
+        IF ( NOT Check_FIND_QUIETLY )
+            MESSAGE ( STATUS "Found CHECK: ${CHECK_LIBRARIES}" )
+        ENDIF ( NOT Check_FIND_QUIETLY )
+    ELSE ( CHECK_INCLUDE_DIR AND CHECK_LIBRARIES )
+        IF ( Check_FIND_REQUIRED )
+            MESSAGE( FATAL_ERROR "Could NOT find CHECK" )
+        ELSE ( Check_FIND_REQUIRED )
+            IF ( NOT Check_FIND_QUIETLY )
+                MESSAGE( STATUS "Could NOT find CHECK" )
+            ENDIF ( NOT Check_FIND_QUIETLY )
+        ENDIF ( Check_FIND_REQUIRED )
+    ENDIF ( CHECK_INCLUDE_DIR AND CHECK_LIBRARIES )
+ENDIF( NOT CHECK_FOUND )
+
+# Hide advanced variables from CMake GUIs
+MARK_AS_ADVANCED( CHECK_INCLUDE_DIR CHECK_LIBRARIES )

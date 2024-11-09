@@ -6,7 +6,7 @@
 #include <check.h>
 
 #line 1 "tests/check_ball.check.c"
-#include "main.h"
+#include "../src/main.h"
 
 // unit testing below
 // checkmk tests/check_ball.check.c > tests/check_ball.c

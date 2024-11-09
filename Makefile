@@ -10,7 +10,8 @@ DEBUG_OBJECT = build_debug/ball_debug.o
 DEBUG_TARGET = build_debug/ball_debug
 SRC = src/ball_sdl.c src/string_functions.c src/main.c
 TEST_SRC = tests/check_ball.c src/ball_sdl.c src/string_functions.c
-TEST_LIBS = -lcheck
+TEST_LIBS = -lcheck -lsubunit
+TEST_TARGET = tests/test_ball
 
 # Default target
 all: test ballBounce
@@ -21,7 +22,8 @@ ballBounce: $(SRC)
 	$(CC) $(CFLAGS) -o $(TARGET) $^ $(LDFLAGS)
 
 test: $(SRC) $(TEST_SRC)
-	$(CC) $(CFLAGS) -o test_runner $(TEST_SRC) $(TEST_LIBS) $(LDFLAGS)
+	checkmk tests/check_ball.check.c > tests/check_ball.c
+	$(CC) $(CFLAGS) -o $(TEST_TARGET) $(TEST_SRC) $(TEST_LIBS) $(LDFLAGS)
 
 # Build target
 $(TARGET): $(SRC) $(HEADERS)
