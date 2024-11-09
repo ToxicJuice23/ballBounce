@@ -1,6 +1,7 @@
 # Compiler and flags
 CC = gcc
 CFLAGS = -Wall -Wextra -O3 -I./src
+TESTFLAGS = -Wno-format-extra-args -Wall -Wextra -O3 -I./src
 LDFLAGS = $(shell sdl2-config --cflags --libs) -lm
 
 # Source and target
@@ -22,8 +23,8 @@ ballBounce: $(SRC)
 	$(CC) $(CFLAGS) -o $(TARGET) $^ $(LDFLAGS)
 
 test: $(SRC) $(TEST_SRC)
-	checkmk tests/check_ball.check.c > tests/check_ball.c
-	$(CC) $(CFLAGS) -o $(TEST_TARGET) $(TEST_SRC) $(TEST_LIBS) $(LDFLAGS)
+	#checkmk tests/check_ball.check.c > tests/check_ball.c
+	$(CC) $(TESTFLAGS) -o $(TEST_TARGET) $(TEST_SRC) $(TEST_LIBS) $(LDFLAGS)
 
 # Build target
 $(TARGET): $(SRC) $(HEADERS)

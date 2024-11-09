@@ -2,7 +2,7 @@
 
 int main(const int argc, char** argv) {
     FILE* input = stdin;
-    if (access(argv[1], F_OK) && argc > 1) {
+    if (argc > 1 && access(argv[1], F_OK)) {
         printf("Usage:\n%s [file]\nfile: an optional file to provide initial values of the variables\n", argv[0]);
         return 1;
     }
@@ -22,11 +22,19 @@ int main(const int argc, char** argv) {
     const u_short window_size_x = *wx;
     const u_short window_size_y = *wy;
     free(wx); free(wy);
+
+
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, 0);
     if (renderer == NULL) {
         fatalf("Failed to create renderer.\n");
         return -1;
     }
+    // allocate memory for variables
+    size_t len = 100;
+    data_t* data = malloc(sizeof(data_t));
+    char* line = malloc(len), *var_name = malloc(len), *val_str = malloc(len), *key_str = malloc(len);;
+    SDL_Keycode* key_buf = malloc(sizeof(SDL_Keycode) * len);
+
     ball_t ball;
 
     ball.v0_x = 0;
@@ -44,7 +52,7 @@ int main(const int argc, char** argv) {
     };
 
     // don't kill the thread every restart lol
-    data_t* data = malloc(sizeof(data_t)); data->b = &ball; data->done = 0; data->reset = 0;
+    data->b = &ball; data->done = 0; data->reset = 0;
     SDL_CreateThread(computing_thread, "ball computing", data);
 
     // set length of the array
@@ -53,12 +61,8 @@ int main(const int argc, char** argv) {
     while (nvars >= 0) { if ((vars[nvars].name == NULL && vars[nvars].var_ptr == NULL) || ++nvars < -1) break;}
 
     if (input == stdin) goto restart;
-    
-    char* line = malloc(100);
-    size_t len = 100;
-    while (getline(&line, &len, input) != -1 && input != stdin) {
-        char* var_name = malloc(strlen(line)), *val_str = malloc(strlen(line));
 
+    while (getline(&line, &len, input) != -1 && input != stdin) {
         if (strip_str(&line, (int)strlen(line)) == -1) continue;
         if (sep_str(line, var_name, val_str, strlen(line)) == -1) continue;
         const float val = strtof(val_str, NULL);
@@ -68,12 +72,13 @@ int main(const int argc, char** argv) {
             }
         }
         data->reset = 1;
-        free(var_name); free(val_str);
     }
 
-    free(line);
 restart:
-    SDL_Keycode* key_buf = malloc(sizeof(SDL_Keycode) * 100);
+    if (key_buf == 0) {
+        key_buf = malloc(sizeof(SDL_Keycode) * 100);
+    }
+
     u_short buf_index = 0;
     memset(key_buf, 0, sizeof(SDL_Keycode) * 100);
 
@@ -87,12 +92,14 @@ restart:
             if ( e.type == SDL_KEYUP ) {
                 const SDL_Keycode k = e.key.keysym.sym;
                 if ( k == SDLK_ESCAPE ) {
-                    free(key_buf);
                     data->reset = 1;
                     goto restart;
                 }
                 if ( k == SDLK_BACKSPACE || k == SDLK_DELETE) {
                     if (buf_index > 0) {
+                        if (key_buf == 0) {
+                            key_buf = malloc(sizeof(SDL_Keycode) * 100);
+                        }
                         key_buf[buf_index-1] = 0;
                         buf_index--;
                     }
@@ -100,7 +107,6 @@ restart:
                     if (buf_index == 0) {data->reset = 1; goto restart;}
 
                     // allocate
-                    char* key_str = malloc(100), *var_name = malloc(100), *val_str = malloc(100);
                     // while break logic instead of goto for safety
                     while (1) {
                         if (key_buf_to_str(key_buf, key_str) == -1) break;
@@ -115,10 +121,6 @@ restart:
                         }
                         break;
                     }
-                    free(var_name);
-                    free(val_str);
-                    free(key_str);
-                    free(key_buf);
                     data->reset = 1;
                     goto restart;
                 } else if (k == SDLK_q) {
@@ -140,7 +142,7 @@ restart:
         drawCircle(renderer, &ball, ball.x + ball.p.x, (float)ball.window_size_y - (ball.y+ball.p.y), ball.n_seg);
         SDL_SetRenderDrawColor(renderer, 10, 10, 10, 255);
         SDL_RenderPresent(renderer);
-        SDL_Delay(5);
+        SDL_Delay(10);
     }
     // clean up
     done:
@@ -149,6 +151,10 @@ restart:
     SDL_DestroyWindow(window);
     free(data);
     free(key_buf);
+    free(key_str);
+    free(var_name);
+    free(val_str);
+    free(line);
     return 0;
 }
 
@@ -168,6 +174,7 @@ int computing_thread(void* d) {
     u_short counter = 0;
     u_short collision_counter = 0;
     while (!data->done) {
+        // every time counter loops back, we poll to see if quit
         if (counter == 0) {
             while (SDL_PollEvent(&e)) {
                 if (e.type == SDL_QUIT) {
@@ -184,16 +191,17 @@ int computing_thread(void* d) {
         handle_collision(ball, ball->window_size_x, ball->window_size_y, &collision_counter);
         set_pos(ball);
         // done
+        if (counter == UINT16_MAX) counter = 0;
+        else counter++;
 
-        counter++;
-        if (collision_counter > 500) {
+        if (collision_counter > 70) {
             goto reset;
         }
-
         if (data->reset) {
             data->reset = 0;
             goto reset;
         }
+        SDL_Delay(10);
     }
     return 0;
 }

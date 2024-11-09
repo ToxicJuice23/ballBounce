@@ -1,3 +1,5 @@
+#include <time.h>
+
 #include "main.h"
 /*
 ATTENTION POSSIBLE CONTRIBUTERS
@@ -6,9 +8,9 @@ All of the functions should be using radians for consistency
 -------------------------------
 */
 
-float calculate_velocity_elastic_collision(const float v) {
+float calculate_velocity_collision(const float v) {
     // for simplicity, simply multiply by 0.8 and inverse direction
-    return -0.9f*v;
+    return -0.8f*v;
 }
 
 void set_base_circle(ball_t* ball) {
@@ -54,7 +56,11 @@ void drawCircle(SDL_Renderer* renderer, ball_t* ball, const float x, const float
 }
 
 float get_time(const float start) {
-    return (float)clock() * CLOCK_DIVISOR - start;
+    struct timespec stop;
+    //do stuff
+    clock_gettime(CLOCK_MONOTONIC_RAW, &stop);
+    float time = (float)stop.tv_sec - start + (float)stop.tv_nsec / 1e9;
+    return time;
 }
 
 void set_pos(ball_t* ball) {
@@ -74,7 +80,7 @@ int handle_collision(ball_t* ball, const u_short size_x, const u_short size_y, u
         switch (_case) {
             case 3:
                 case 4:
-                ball->v_y = calculate_velocity_elastic_collision(ball->v_y + ball->G*ball->dty);
+                ball->v_y = calculate_velocity_collision(ball->v_y + ball->G*ball->dty);
                 ball->y += ball->p.y;
                 ball->dty = 0;
                 ball->t0y = get_time(0);
@@ -82,7 +88,7 @@ int handle_collision(ball_t* ball, const u_short size_x, const u_short size_y, u
             case 1:
                 case 2:
                 ball->x += ball->p.x;
-                ball->v_x = calculate_velocity_elastic_collision(ball->v_x);
+                ball->v_x = calculate_velocity_collision(ball->v_x);
                 ball->dtx = 0;
                 ball->t0x = get_time(0);
                 break;

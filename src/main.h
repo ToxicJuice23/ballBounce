@@ -13,7 +13,7 @@
 #include <stdarg.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_thread.h>
-#include <time.h>
+#include <sys/time.h>
 #include <limits.h>
 #include <fcntl.h>
 #define PI 3.141592653589
@@ -50,7 +50,7 @@ typedef struct {
 
 typedef struct {ball_t* b; uint8_t done; uint8_t reset;} data_t;
 
-float calculate_velocity_elastic_collision( float v);
+float calculate_velocity_collision( float v);
 void set_base_circle( ball_t* ball);
 void drawCircle( SDL_Renderer* renderer, ball_t* ball,  float x,  float y,  int n);
 float get_time( float start);

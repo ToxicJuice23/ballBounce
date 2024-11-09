@@ -14,10 +14,15 @@ void fatalf(const char* fmt, ...) {
 }
 
 int key_buf_to_str(const SDL_Keycode* key_buf, char* key_str) {
+    /*
+     * in the case where key_buf contains a keycode
+     * greater than UCHAR_MAX, char will be a space
+    */
     // transform array of keys into string
     if (key_buf == NULL || key_str == NULL) {
         return -1;
     }
+    // no need to check if len < 100 bc its hardcoded len
     for (int i=0; i < 100; i++) {
         key_str[i] = key_buf[i] > UCHAR_MAX ? ' ' : (char)key_buf[i];
         if (key_str[i] == 0) {
@@ -37,6 +42,7 @@ int is_allowed(const char c) {
 }
 
 int strip_str(char** str, const int n) {
+    // returns -1 if \0 is reached before the end given with n
     // remove unwanted characters
     if (str == NULL || *str == NULL) {
         return -1;

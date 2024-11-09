@@ -5,27 +5,152 @@
 
 #include <check.h>
 
-#line 1 "tests/check_ball.check.c"
 #include "../src/main.h"
 
 // unit testing below
 // checkmk tests/check_ball.check.c > tests/check_ball.c
-START_TEST(calculate_velocity_inelastic_collision)
-{
-#line 6
-    fail_unless(calculate_velocity_elastic_collision(100.f) == -90.f, "Incorrect velocity calculation");
+START_TEST(test_calculate_velocity_collision) {
+    fail_unless(calculate_velocity_collision(100.f) == -80.f, "Incorrect velocity calculation");
+}
+END_TEST
+
+START_TEST(test_get_time) {
+    fail_if(get_time(0) == 0, "get_time(0) failed");
+    fail_unless(get_time(0) >= get_time(1), "get_time broken");
+}
+END_TEST
+
+START_TEST(test_set_pos) {
+    ball_t* ball = malloc(sizeof(ball_t));
+    set_pos(ball);
+    memset(ball, 0, sizeof(ball_t));
+    fail_unless(ball->p.x == 0 && ball->p.y == 0, "null ball gives bad behavior");
+    memset(ball, 0, sizeof(ball_t));
+    ball->G = -9.81f;
+    ball->dtx = 2.5f;
+    ball->dty = 2.5f;
+    ball->v_x = 12;
+    ball->v_y = 43;
+    set_pos(ball);
+    char* msg = malloc(100);
+    sprintf(msg, "expected x=30 and y=77, recieved instead x=%2.f and y=%d", ball->p.x, (int)roundf(ball->p.y));
+    fail_unless(ball->p.x == 30 && roundf(ball->p.y) == 77, msg);
+    free(msg);
+    free(ball);
+}
+
+START_TEST(test_key_buf_to_str) {
+    fail_unless(key_buf_to_str(0, 0) == -1 && key_buf_to_str(0, (char*)1) == -1, "NULL pointers unhandled");
+    const SDL_Keycode key_buf[100] = {1000, 'a', 'b', 'c', 0};
+    char* res = malloc(100);
+    key_buf_to_str(key_buf, res);
+    fail_unless(strcmp(res, " abc") == 0, "overflow badly handled");
+    free(res);
+}
+END_TEST
+
+START_TEST(test_is_allowed) {
+    fail_if(!is_allowed('-'), "'-' Should be allowed");
+    fail_if(!is_allowed('c'), "alphanumerical should be allowed");
+    fail_if(!is_allowed('9'), "alphanumerical should be allowed");
+    fail_if(is_allowed(0), "null character should not be allowed");
+}
+END_TEST
+
+START_TEST(test_strip_str) {
+    char* ptr = 0;
+    fail_unless(strip_str(0, 0) == -1 && strip_str(&ptr, 0) == -1, "NULL pointers unhandled");
+    char* t1 = malloc(100);
+    strcpy(t1, " x = 3405;");
+    char* t2 = malloc(100);
+    strcpy(t2, "\0");
+    char* t3 = malloc(100);
+    strcpy(t3, "TesT iNg");
+    const int r1 = strip_str(&t1, 10);
+    const int r2 = strip_str(&t2, 1);
+    const int r3 = strip_str(&t3, 8);
+    fail_unless(strcmp(t1, "x=3405") == 0 && !r1, "spaces and semicolons should be removed");
+    fail_unless(strlen(t2) == 0 && r2 == -1, "should stop when reading \\0");
+    fail_unless(strcmp(t3, "testing") == 0 && !r3, "characters should be lowerd");
+    free(t1); free(t2); free(t3);
+}
+END_TEST
+
+START_TEST(test_sep_str) {
+    char* res = NULL;
+    char* var_name = NULL;
+    char* val = NULL;
+    u_int n = 0;
+
+    // Test NULL pointers and zero-length handling
+    fail_unless(sep_str(res, var_name, val, n) == -1, "NULL pointers and zero length unhandled");
+
+    // Allocate memory for testing
+    var_name = malloc(100);
+    val = malloc(100);
+
+    // Test valid input with separator
+    strcpy(res = malloc(100), "x=3405");
+    memset(var_name, 0, 100);
+    memset(val, 0, 100);
+    fail_unless(sep_str(res, var_name, val, 100) == 0, "Failed to separate with valid input");
+    fail_unless(strcmp(var_name, "x") == 0 && strcmp(val, "3405") == 0, "Variable name or value not parsed correctly");
+
+    // Test input without separator
+    strcpy(res, "no_separator");
+    memset(var_name, 0, 100);
+    memset(val, 0, 100);
+    fail_unless(sep_str(res, var_name, val, 100) == -1, "Should return -1 if separator '=' is not found");
+
+    // Test truncated input with a small buffer size
+    strcpy(res, "a=12345");
+    memset(var_name, 0, 100);
+    memset(val, 0, 100);
+    fail_unless(sep_str(res, var_name, val, 3) == 0, "Function should handle limited buffer sizes");
+    fail_unless(strcmp(var_name, "a") == 0 && strcmp(val, "1") == 0, "Truncated value parsing failed");
+
+    // Test input with empty value after separator
+    strcpy(res, "y=");
+    memset(var_name, 0, 100);
+    memset(val, 0, 100);
+    fail_unless(sep_str(res, var_name, val, 100) == 0, "Function should handle empty value after '='");
+    fail_unless(strcmp(var_name, "y") == 0 && strlen(val) == 0, "Failed to parse empty value correctly");
+
+    // Cleanup
+    free(res);
+    free(var_name);
+    free(val);
 }
 END_TEST
 
 int main(void)
 {
     Suite *s1 = suite_create("Core");
-    TCase *tc1_1 = tcase_create("Core");
+    TCase *tc1_1 = tcase_create("calculate_velocity_collision");
+    TCase *tc1_2 = tcase_create("get_time");
+    TCase *tc1_3 = tcase_create("set_pos");
+    TCase *tc1_4 = tcase_create("key_buf_to_str");
+    TCase *tc1_5 = tcase_create("is_allowed");
+    TCase *tc1_6 = tcase_create("strip_str");
+    TCase *tc1_7 = tcase_create("sep_str");
     SRunner *sr = srunner_create(s1);
+
     int nf;
 
     suite_add_tcase(s1, tc1_1);
-    tcase_add_test(tc1_1, calculate_velocity_inelastic_collision);
+    suite_add_tcase(s1, tc1_2);
+    suite_add_tcase(s1, tc1_3);
+    suite_add_tcase(s1, tc1_4);
+    suite_add_tcase(s1, tc1_5);
+    suite_add_tcase(s1, tc1_6);
+    suite_add_tcase(s1, tc1_7);
+    tcase_add_test(tc1_1, test_calculate_velocity_collision);
+    tcase_add_test(tc1_2, test_get_time);
+    tcase_add_test(tc1_3, test_set_pos);
+    tcase_add_test(tc1_4, test_key_buf_to_str);
+    tcase_add_test(tc1_5, test_is_allowed);
+    tcase_add_test(tc1_6, test_strip_str);
+    tcase_add_test(tc1_7, test_sep_str);
 
     srunner_run_all(sr, CK_ENV);
     nf = srunner_ntests_failed(sr);
